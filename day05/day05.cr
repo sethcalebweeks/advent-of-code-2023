@@ -17,10 +17,6 @@ class Map
     map
   end
 
-  def add_range(range, value)
-    @ranges[range] = value
-  end
-
   def transform(resource)
     range = @ranges.find { |range, _| range.includes?(resource) }
     range.nil? ? resource : (resource - range[0].begin) + range[1]
