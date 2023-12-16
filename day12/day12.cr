@@ -1,13 +1,5 @@
 input = File.read("input").strip
 
-# input = "
-# ???.### 1,1,3
-# .??..??...?##. 1,1,3
-# ?#?#?#?#?#?#?#? 1,3,1,6
-# ????.#...#... 4,1,1
-# ????.######..#####. 1,6,5
-# ?###???????? 3,2,1".strip
-
 conditions = input.split("\n").map do |line|
   row, distribution = line.split(' ')
   {row, distribution.split(',').map(&.to_i)}
@@ -22,48 +14,50 @@ def valid_spacing(row, spacing)
   valid
 end
 
-def spacing(row, arr)
-  if arr.size == 1
-    (0..row.size - arr[0]).reduce([] of String) do |sub, i|
+cache = Hash(Tuple(String, Array(Int32)), Int64).new()
+
+def spacing(row, arr, cache)
+  if cache.has_key?({row, arr})
+    cache[{row, arr}]
+  elsif arr.size == 1
+    arrangements = (0..row.size - arr[0]).reduce(0_i64) do |sum, i|
       spacing = "." * i + "#" * arr[0] + "." * (row.size - arr[0] - i)
-      valid_spacing(row, spacing) ? sub << spacing : sub
+      valid_spacing(row, spacing) ? sum.to_i64 + 1 : sum.to_i64
     end
+    cache[{row, arr}] = arrangements
+    arrangements
   else
     to = row.size - arr[1..].size - arr[1..].sum - arr[0]
-    (0..to).flat_map do |i|
+    arrangements = (0..to).reduce(0_i64) do |sum, i|
       prefix = "." * i + "#" * arr[0] + "."
       if valid_spacing(row[...prefix.size], prefix)
-        spacing(row[i + arr[0] + 1..], arr[1..]).reduce([] of String) do |acc, sub|
-          spacing = prefix + sub
-          valid_spacing(row, spacing) ? acc << spacing : acc
-        end
+        sum.to_i64 + spacing(row[i + arr[0] + 1..], arr[1..], cache)
       else
-        [] of String
+        sum.to_i64
       end
     end
+    cache[{row, arr}] = arrangements
+    arrangements
   end
 end
 
-puts spacing(conditions[3][0].strip('.'), conditions[3][1])
-
 part1 = conditions.reduce(0) do |sum, (row, distribution)|
-  sum + spacing(row, distribution)
-    .select { |spacing| valid_spacing(row, spacing)}
-    .size
+  sum + spacing(row, distribution, cache)
 end
 
 puts part1
-
 
 unfolded = conditions.map do |row, distribution|
   {[row, row, row, row, row].join("?"), distribution * 5}
 end
 
-part2 = unfolded[142..].reduce(0_i64) do |sum, (row, distribution)|
-  thing = spacing(row, distribution).size
-  File.write("output", "#{thing}\n", mode: "a") # testing code
-  puts thing # testing code
-  sum + thing
+part2 = begin
+  unfolded = conditions.map do |row, distribution|
+    {[row, row, row, row, row].join("?"), distribution * 5}
+  end
+  unfolded.reduce(0_i64) do |sum, (row, distribution)|
+    sum + spacing(row, distribution, cache)
+  end
 end
 
 puts part2
